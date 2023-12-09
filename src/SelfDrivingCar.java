@@ -56,6 +56,11 @@ public class SelfDrivingCar implements Agent {
         return distance;
     }
 
+    /**
+     * Convertit une vitesse en km/h en m/s
+     * @param kmPerH
+     * @return
+     */
     private double kmPerHInMPerS(int kmPerH) {
         return (double) (kmPerH * 1000) /3600;
     }

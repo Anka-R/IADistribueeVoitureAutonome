@@ -8,6 +8,14 @@ public class RetractableBollardIntersection implements Agent {
      */
     @Override
     public Boolean getInformation() {
-        return null;
+        return bollardRaised;
+    }
+
+    /**
+     * Setter de l'état des bornes
+     * @param newValue
+     */
+    public void setBollardRaised(boolean newValue) {
+        this.bollardRaised = newValue;
     }
 }
