@@ -12,7 +12,7 @@ public class DecisionMaker {
 
         boolean bollardsRaised = bollards.getInformation();
 
-        List<String> cameraInformation = camera.getInformation();
+        List<EnvironmentSituation> cameraInformation = camera.getInformation();
     }
 
 }
