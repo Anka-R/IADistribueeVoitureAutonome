@@ -11,7 +11,7 @@ public class Camera implements Agent {
     @Override
     public List<EnvironmentSituation> getInformation() {
         List<EnvironmentSituation> situations = new ArrayList<>();
-        Random random = new Random();
+        /*Random random = new Random();
         int situationsNumber = random.nextInt(1, 5); // Entre 1 et 3 évènements simultanés
         EnvironmentSituation[] allSituations = EnvironmentSituation.values();
 
@@ -28,8 +28,9 @@ public class Camera implements Agent {
             } while (situations.contains(chosenSituation));
 
             situations.add(chosenSituation);
-        }
-
+        }*/
+        situations.add(EnvironmentSituation.RED_TRAFFIC_LIGHT_UP_DOWN_ROAD);
+        situations.add(EnvironmentSituation.PEDESTRIAN_UP_ROAD);
         return situations;
     }
 }
