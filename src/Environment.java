@@ -40,6 +40,13 @@ public class Environment {
         }
     }
 
+    /**
+     * Permet d'afficher toutes les données concernant l'environnement
+     * @param situations
+     * @param carSpeed
+     * @param carItinerary
+     * @param bollardsRaised
+     */
     public static void printSituation(List<EnvironmentSituation> situations, int carSpeed, IntersectionRoads carItinerary, boolean bollardsRaised) {
         System.out.println("Environnement :");
 
