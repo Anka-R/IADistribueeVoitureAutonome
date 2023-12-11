@@ -1,6 +1,6 @@
 public enum IntersectionRoads {
+    UP,
     LEFT,
     RIGHT,
-    UP,
     DOWN
 }

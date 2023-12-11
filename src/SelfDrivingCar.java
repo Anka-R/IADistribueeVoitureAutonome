@@ -25,10 +25,10 @@ public class SelfDrivingCar implements Agent {
      * @param speed
      * @param itinerary
      */
-    public SelfDrivingCar(int speed, IntersectionRoads itinerary, int initialDistanceToTrafficLight) {
+    public SelfDrivingCar(int speed, IntersectionRoads itinerary) {
         this.speed = speed;
         this.itinerary = itinerary;
-        this.distanceToNextObstacle = initialDistanceToTrafficLight;
+        this.distanceToNextObstacle = Environment.DISTANCE_TO_TRAFFIC_LIGHT;
     }
 
     /**
@@ -95,5 +95,13 @@ public class SelfDrivingCar implements Agent {
      */
     public void setSpeed(int speed) {
         this.speed = speed;
+    }
+
+    /**
+     * Getter de speed
+     * @return
+     */
+    public int getSpeed() {
+        return speed;
     }
 }

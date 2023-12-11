@@ -16,9 +16,13 @@ public class DecisionMaker {
 
         List<EnvironmentSituation> cameraInformation = camera.getInformation();
 
+        Environment.printSituation(cameraInformation, carSpeed, carItinerary, bollards.getInformation());
+
         int stepCount = 1;
         int situationNumber = 0;
         boolean abnormalSituation = false;
+        boolean noObstacleStep1 = false;
+
         while (situationNumber < cameraInformation.size() && !abnormalSituation) {
             EnvironmentSituation situation = cameraInformation.get(situationNumber);
             boolean bollardsRaised = bollards.getInformation();
@@ -26,7 +30,9 @@ public class DecisionMaker {
             if (situation.equals(EnvironmentSituation.RED_TRAFFIC_LIGHT_UP_DOWN_ROAD)
                     || situation.equals(EnvironmentSituation.PEDESTRIAN_UP_ROAD) || bollardsRaised) {
 
-                boolean carCanStop = carCanReachSpeed(carSpeed, 0, selfDrivingCar.getDistanceToNextObstacle());
+                // OBSTACLE DANS L'ÉTAPE 1
+
+                boolean carCanStop = carCanReachSpeed(selfDrivingCar.getSpeed(), 0, selfDrivingCar.getDistanceToNextObstacle());
                 steps.put(stepCount, firstObstacleDecisionText(carCanStop, situation, bollardsRaised));
 
                 if (bollardsRaised) {
@@ -34,21 +40,71 @@ public class DecisionMaker {
                 }
 
                 selfDrivingCar.setSpeed(0);
-                selfDrivingCar.setDistanceToNextObstacle(20);
+                selfDrivingCar.setDistanceToNextObstacle(Environment.DISTANCE_TO_INTERSECTION_CENTER);
 
                 abnormalSituation = !carCanStop;
+
+                if (!abnormalSituation) {
+                    // On estime qu'une conduite raisonnable implique une vitesse de 20 km/h dans une intersection
+                    boolean carCanReachSpeed = carCanReachSpeed(selfDrivingCar.getSpeed(), Environment.SPEED_IN_INTERSECTION, Environment.DISTANCE_TO_TRAFFIC_LIGHT/2);
+
+                    if (carCanReachSpeed) {
+                        selfDrivingCar.setSpeed(Environment.SPEED_IN_INTERSECTION);
+                        selfDrivingCar.setDistanceToNextObstacle(Environment.DISTANCE_TO_TRAFFIC_LIGHT/2);
+                    }
+                }
 
             } else if ((situation.equals(EnvironmentSituation.PEDESTRIAN_LEFT_ROAD) && carItinerary.equals(IntersectionRoads.LEFT))
                     || ((situation.equals(EnvironmentSituation.PEDESTRIAN_RIGHT_ROAD)
                     || situation.equals(EnvironmentSituation.CAR_COMES_FROM_DOWN)) && carItinerary.equals(IntersectionRoads.RIGHT))
                     || (situation.equals(EnvironmentSituation.PEDESTRIAN_DOWN_ROAD) && carItinerary.equals(IntersectionRoads.DOWN))) {
 
-                boolean carCanStop = carCanReachSpeed(carSpeed, 0, selfDrivingCar.getDistanceToNextObstacle());
+                // OBSTACLE DANS L'ÉTAPE 2
 
+                boolean carCanStop = carCanReachSpeed(selfDrivingCar.getSpeed(), 0, selfDrivingCar.getDistanceToNextObstacle());
+
+                if (carCanStop) {
+                    steps.put(stepCount, "La voiture s'arrête au centre de l'intersection"
+                            + (situation.equals(EnvironmentSituation.CAR_COMES_FROM_DOWN) ?
+                            " et laisse passer la voiture arrivant en face" : " et laisse passer le piéton"));
+
+                    selfDrivingCar.setDistanceToNextObstacle(0);
+                    selfDrivingCar.setSpeed(0);
+                } else {
+                    steps.put(stepCount, "La voiture ne peut pas s'arrêter au centre de l'intersection et le dépasse");
+                    abnormalSituation = true;
+                }
+
+            } else {
+
+                // AUCUN OBSTACLE DANS L'ÉTAPE 1 (La voiture avance directement au centre de l'intersection)
+
+                if (!noObstacleStep1) {
+
+                    noObstacleStep1 = true;
+                    boolean carCanReachSpeed = carCanReachSpeed(selfDrivingCar.getSpeed(), Environment.SPEED_IN_INTERSECTION, selfDrivingCar.getDistanceToNextObstacle());
+
+                    if (carCanReachSpeed) {
+                        steps.put(stepCount, "La voiture ralentit à " + Environment.SPEED_IN_INTERSECTION + " km/h dans l'intersection");
+                        selfDrivingCar.setSpeed(Environment.SPEED_IN_INTERSECTION);
+                        selfDrivingCar.setDistanceToNextObstacle(Environment.DISTANCE_TO_INTERSECTION_CENTER);
+                    } else {
+                        steps.put(stepCount, "La voiture ne peut pas ralentir à " + Environment.SPEED_IN_INTERSECTION + " km/h et roule plus rapidement dans l'intersection");
+                        abnormalSituation = true;
+                    }
+                }
             }
 
             situationNumber++;
             stepCount++;
+        }
+
+        if (!abnormalSituation) {
+            if (carItinerary.equals(IntersectionRoads.DOWN)) {
+                steps.put(stepCount, "La voiture poursuit sur la voie en face et continue sa route");
+            } else {
+                steps.put(stepCount, "La voiture tourne sur sa voie et continue sa route");
+            }
         }
 
         return steps;

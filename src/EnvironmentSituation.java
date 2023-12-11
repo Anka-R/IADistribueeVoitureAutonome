@@ -5,7 +5,5 @@ public enum EnvironmentSituation {
     PEDESTRIAN_RIGHT_ROAD, // Un piéton traverse sur la route à droite
     PEDESTRIAN_UP_ROAD, // Un piéton traverse sur la route en haut
     PEDESTRIAN_DOWN_ROAD, // Un piéton traverse sur la route en bas
-    CAR_COMES_FROM_LEFT, // Un voiture arrive depuis la route à gauche
-    CAR_COMES_FROM_RIGHT, // Un voiture arrive depuis la route à droite
     CAR_COMES_FROM_DOWN // Un voiture arrive depuis la route en bas
 }
