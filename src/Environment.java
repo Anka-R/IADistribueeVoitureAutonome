@@ -76,7 +76,7 @@ public class Environment {
             }
         }
 
-        System.out.println("La voiture roule à une vittesse de " + carSpeed + " km/h.");
+        System.out.println("La voiture roule à une vitesse de " + carSpeed + " km/h.");
 
         switch (carItinerary) {
             case LEFT -> {
@@ -91,9 +91,9 @@ public class Environment {
         }
 
         if (bollardsRaised) {
-            System.out.println("Les bornes escamotables sont levées");
+            System.out.println("Les bornes escamotables sont levées.");
         } else {
-            System.out.println("Les bornes escamotables sont baissées");
+            System.out.println("Les bornes escamotables sont baissées.");
         }
 
         System.out.print("\n");
