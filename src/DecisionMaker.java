@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ public class DecisionMaker {
         IntersectionRoads carItinerary = (IntersectionRoads) carInformation[1];
 
         List<EnvironmentSituation> cameraInformation = camera.getInformation();
+        cameraInformation = reorganiseElements(cameraInformation);
 
         Environment.printSituation(cameraInformation, carSpeed, carItinerary, bollards.getInformation());
 
@@ -75,7 +77,7 @@ public class DecisionMaker {
                     abnormalSituation = true;
                 }
 
-            } else {
+            } else if (!situation.equals(EnvironmentSituation.RED_TRAFFIC_LIGHT_LEFT_RIGHT_ROAD)) {
 
                 // AUCUN OBSTACLE DANS L'ÉTAPE 1 (La voiture avance directement au centre de l'intersection)
 
@@ -92,7 +94,11 @@ public class DecisionMaker {
                         steps.put(stepCount, "La voiture ne peut pas ralentir à " + Environment.SPEED_IN_INTERSECTION + " km/h et roule plus rapidement dans l'intersection");
                         abnormalSituation = true;
                     }
+                } else {
+                    stepCount--;
                 }
+            } else {
+                stepCount--;
             }
 
             situationNumber++;
@@ -171,6 +177,28 @@ public class DecisionMaker {
         }
 
         return text;
+    }
+
+    /**
+     * Permet de réorganiser les situations
+     * @param cameraInfo
+     * @return
+     */
+    private List<EnvironmentSituation> reorganiseElements(List<EnvironmentSituation> cameraInfo) {
+        List<EnvironmentSituation> situations = new ArrayList<>();
+        situations.add(cameraInfo.get(0));
+
+        if (cameraInfo.contains(EnvironmentSituation.PEDESTRIAN_UP_ROAD)) {
+            situations.add(EnvironmentSituation.PEDESTRIAN_UP_ROAD);
+        }
+
+        for (int i = 1 ; i < cameraInfo.size() ; i++) {
+            if (!cameraInfo.get(i).equals(EnvironmentSituation.PEDESTRIAN_UP_ROAD)) {
+                situations.add(cameraInfo.get(i));
+            }
+        }
+
+        return situations;
     }
 
 }
