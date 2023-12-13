@@ -23,21 +23,27 @@ public class Environment {
         Random random = new Random();
 
         // Vitesse de la voiture aléatoire (entre 40 et 80 km/h) + Itinéraire aléatoire (sans prendre en compte le demi-tour)
-        SelfDrivingCar selfDrivingCar = new SelfDrivingCar(random.nextInt(40, 85),
+        SelfDrivingCar selfDrivingCar = new SelfDrivingCar(/*random.nextInt(40, 85)*/80,
                 IntersectionRoads.values()[random.nextInt(1, IntersectionRoads.values().length)]);
 
-        RetractableBollardIntersection bollard = new RetractableBollardIntersection(random.nextBoolean());
+        RetractableBollardIntersection bollard = new RetractableBollardIntersection();
 
         Camera camera = new Camera();
         DecisionMaker decisionMaker = new DecisionMaker();
 
-        Map<Integer, String> decisions = decisionMaker.makeDecision(selfDrivingCar, bollard, camera);
+        decisionMaker.learnAndUpdateProbability(camera);
+        decisionMaker.printProbabilities();
 
-        System.out.println("Décisions : ");
+        Object[] result = decisionMaker.makeDecisionWithUtilities(selfDrivingCar, bollard, camera);
+        Map<Integer, String> decisions = (Map<Integer, String>) result[1];
+
+        System.out.println("\nDécisions : ");
 
         for (Map.Entry<Integer, String> decision : decisions.entrySet()) {
             System.out.println("Étape " + decision.getKey() + " : " + decision.getValue() + ".");
         }
+
+        System.out.println("\nUtilité obtenue : " + result[0]);
     }
 
     /**
@@ -48,7 +54,7 @@ public class Environment {
      * @param bollardsRaised
      */
     public static void printSituation(List<EnvironmentSituation> situations, int carSpeed, IntersectionRoads carItinerary, boolean bollardsRaised) {
-        System.out.println("Environnement :");
+        System.out.println("\nEnvironnement :");
 
         for(EnvironmentSituation situation : situations) {
             switch (situation) {
@@ -96,6 +102,5 @@ public class Environment {
             System.out.println("Les bornes escamotables sont baissées.");
         }
 
-        System.out.print("\n");
     }
 }

@@ -1,13 +1,15 @@
+import java.util.Random;
+
 public class RetractableBollardIntersection implements Agent {
 
     private boolean bollardRaised;
 
     /**
      * Constructeur par défaut
-     * @param bollardRaised
      */
-    public RetractableBollardIntersection(boolean bollardRaised) {
-        this.bollardRaised = bollardRaised;
+    public RetractableBollardIntersection() {
+        Random random = new Random();
+        this.bollardRaised = random.nextBoolean();
     }
 
     /**

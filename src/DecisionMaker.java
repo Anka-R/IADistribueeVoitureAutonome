@@ -6,6 +6,65 @@ import java.util.Map;
 public class DecisionMaker {
 
     /**
+     * Utilité d'avoir ou de ne pas avoir des dégâts matériels.
+     * élément 0 : utilité d'avoir des dégâts matériels.
+     * élément 1 : utilité de ne pas avoir des dégâts matériels dans le cas où les bornes escamotables sont levées.
+     */
+    private static final int[] CAR_DAMAGE_UTILITY = {-3, 2};
+
+    /**
+     * Utilité de renverser ou de ne pas renverser un piéton.
+     * élément 0 : utilité de renverser un piéton.
+     * élément 1 : utilité de ne pas renverser un piéton dans le cas où un piéton traverse.
+     */
+    private static final int[] PEDESTRIAN_DAMAGE_UTILITY = {-10, 2};
+
+    /**
+     * Utilité de s'arrêter mais qu'il n'y ai pas de piéton ou de voiture bloquant le passage.
+     */
+    private static final int STOP_BUT_NO_PEDESTRIAN_OR_CAR_UTILITY = -4;
+
+    /**
+     * Utilité de s'arrêter mais que les bornes escamotables ne soient pas levées.
+     */
+    private static final int STOP_BUT_NO_BOLLARD_UTILITY = -4;
+
+    /**
+     * Utilité de traverser rapidement l'intersection.
+     */
+    private static final int FAST_CROSSING_UTILITY = 2;
+
+    /**
+     * Probabilité que les bornes escamotables soient levées
+     */
+    private double bollardRaisedProbability = 0;
+
+    /**
+     * Probabilité qu'il y ai un piéton sur la route du haut
+     */
+    private double pedestrianUpRoadProbability = 0;
+
+    /**
+     * Probabilité qu'il y ai un piéton sur la route de gauche
+     */
+    private double pedestrianLeftRoadProbability = 0;
+
+    /**
+     * Probabilité qu'il y ai un piéton sur la route du bas
+     */
+    private double pedestrianDownRoadProbability = 0;
+
+    /**
+     * Probabilité qu'il y ai un piéton sur la route de droite
+     */
+    private double pedestrianRightRoadProbability = 0;
+
+    /**
+     * Probabilité qu'il y ai une voiture sur la route du bas
+     */
+    private double carDownRoadProbability = 0;
+
+    /**
      * Récupère les informations de tous les agents et prend une décision
      */
     public Map<Integer, String> makeDecision(SelfDrivingCar selfDrivingCar, RetractableBollardIntersection bollards, Camera camera) {
@@ -117,6 +176,131 @@ public class DecisionMaker {
     }
 
     /**
+     * Prend des décisions en fonction des probabilité et utilité des obstacles.
+     * @param selfDrivingCar
+     * @param bollards
+     * @param camera
+     * @return Un tableau contenant les éléments suivants :
+     *          - élément 0 : utilité totale obtenue.
+     *          - élément 1 : décisions prises.
+     */
+    public Object[] makeDecisionWithUtilities(SelfDrivingCar selfDrivingCar, RetractableBollardIntersection bollards, Camera camera) {
+        Map<Integer, String> steps = new HashMap<>();
+        int globalUtility;
+
+        Object[] carInformation = selfDrivingCar.getInformation();
+        int carSpeed = (int) carInformation[0];
+        IntersectionRoads carItinerary = (IntersectionRoads) carInformation[1];
+
+        List<EnvironmentSituation> cameraInfo = camera.getInformation();
+        Environment.printSituation(cameraInfo, carSpeed, carItinerary, bollards.getInformation());
+
+
+        // -----  FIRST OBSTACLE  -----
+
+        double stopUtilityFirstObstacleEsperance = (bollardRaisedProbability * CAR_DAMAGE_UTILITY[1])
+                + (pedestrianUpRoadProbability * PEDESTRIAN_DAMAGE_UTILITY[1]) + ((1 - bollardRaisedProbability) * STOP_BUT_NO_BOLLARD_UTILITY)
+                + ((1 - pedestrianUpRoadProbability) * STOP_BUT_NO_PEDESTRIAN_OR_CAR_UTILITY);
+
+        double noFirstObstacleProbability = (1 - bollardRaisedProbability) * (1 - pedestrianUpRoadProbability);
+
+        double notStopUtilityFirstObstacleEsperance = (noFirstObstacleProbability * FAST_CROSSING_UTILITY) + (bollardRaisedProbability * CAR_DAMAGE_UTILITY[0])
+                + (pedestrianUpRoadProbability * PEDESTRIAN_DAMAGE_UTILITY[0]);
+
+        System.out.println("\nEspérances d'utilités : ");
+        System.out.println("- S'arrêter au niveau du premier obstacle : " + stopUtilityFirstObstacleEsperance);
+        System.out.println("- Ne pas s'arrêter au niveau du premier obstacle : " + notStopUtilityFirstObstacleEsperance);
+
+
+        if (stopUtilityFirstObstacleEsperance >= notStopUtilityFirstObstacleEsperance) {
+            steps.put(1, "La voiture s'arrête au niveau du premier obstacle éventuel");
+        } else {
+            steps.put(1, "La voiture ne s'arrête pas au niveau du premier obstacle éventuel");
+        }
+
+        Object[] firstObstacleUtilityResult = calculateUtilityFirstObstacle(stopUtilityFirstObstacleEsperance >= notStopUtilityFirstObstacleEsperance,
+                bollards.getInformation(), cameraInfo);
+
+        globalUtility = (int) firstObstacleUtilityResult[0];
+        String firstObstacleDamageType = (String) firstObstacleUtilityResult[1];
+
+        if (firstObstacleDamageType == null) {
+            // -----  SECOND OBSTACLE  -----
+
+            double stopUtilitySecondObstacleEsperance = 0;
+            double notStopUtilitySecondObstacleEsperance = 0;
+
+            switch (carItinerary) {
+                case LEFT -> {
+                    stopUtilitySecondObstacleEsperance = (pedestrianLeftRoadProbability * PEDESTRIAN_DAMAGE_UTILITY[1])
+                            + ((1 - pedestrianLeftRoadProbability) * STOP_BUT_NO_PEDESTRIAN_OR_CAR_UTILITY);
+
+                    notStopUtilitySecondObstacleEsperance = ((1 - pedestrianLeftRoadProbability) * FAST_CROSSING_UTILITY)
+                            + (pedestrianLeftRoadProbability * PEDESTRIAN_DAMAGE_UTILITY[0]);
+                }
+                case DOWN -> {
+                    stopUtilitySecondObstacleEsperance = (pedestrianDownRoadProbability * PEDESTRIAN_DAMAGE_UTILITY[1])
+                            + ((1 - pedestrianDownRoadProbability) * STOP_BUT_NO_PEDESTRIAN_OR_CAR_UTILITY);
+
+                    notStopUtilitySecondObstacleEsperance = ((1 - pedestrianDownRoadProbability) * FAST_CROSSING_UTILITY)
+                            + (pedestrianDownRoadProbability * PEDESTRIAN_DAMAGE_UTILITY[0]);
+                }
+                case RIGHT -> {
+                    stopUtilitySecondObstacleEsperance = (pedestrianRightRoadProbability * PEDESTRIAN_DAMAGE_UTILITY[1]
+                            + ((1 - pedestrianRightRoadProbability) * STOP_BUT_NO_PEDESTRIAN_OR_CAR_UTILITY))
+                            + (carDownRoadProbability * CAR_DAMAGE_UTILITY[1]) + ((1 - carDownRoadProbability) * STOP_BUT_NO_PEDESTRIAN_OR_CAR_UTILITY);
+
+                    notStopUtilitySecondObstacleEsperance = (((1 - pedestrianDownRoadProbability) * (1 - carDownRoadProbability)) * FAST_CROSSING_UTILITY)
+                            + (pedestrianDownRoadProbability * PEDESTRIAN_DAMAGE_UTILITY[0]) + (carDownRoadProbability * CAR_DAMAGE_UTILITY[0]);
+                }
+            }
+
+            System.out.println("- S'arrêter au niveau du deuxième obstacle : " + stopUtilitySecondObstacleEsperance);
+            System.out.println("- Ne pas s'arrêter au niveau du deuxième obstacle : " + notStopUtilitySecondObstacleEsperance);
+
+            if (stopUtilitySecondObstacleEsperance >= notStopUtilitySecondObstacleEsperance) {
+                steps.put(2, "La voiture s'arrête au niveau du deuxième obstacle éventuel");
+            } else {
+                steps.put(2, "La voiture ne s'arrête pas au niveau du deuxième obstacle éventuel mais ne provoque aucun dégât");
+            }
+
+            Object[] secondObstacleUtilityResult = calculateUtilitySecondObstacle(
+                    stopUtilitySecondObstacleEsperance >= notStopUtilitySecondObstacleEsperance, carItinerary, cameraInfo);
+
+            globalUtility += (int) secondObstacleUtilityResult[0];
+            String secondObstacleDamageType = (String) secondObstacleUtilityResult[1];
+
+            if (secondObstacleDamageType != null) {
+
+                if (secondObstacleDamageType.equals("PEDESTRIAN_DAMAGE")) {
+                    steps.put(2, "La voiture ne s'arrête pas au centre de l'intersection et renverse le piéton");
+                } else if (secondObstacleDamageType.equals("CAR_DAMAGE")) {
+                    steps.put(2, "La voiture ne s'arrête pas au centre de l'intersection et percute la voiture arrivant en face");
+                }
+
+            } else {
+                if (carItinerary.equals(IntersectionRoads.DOWN)) {
+                    steps.put(3, "La voiture continue sur la voie d'en face et poursuit sa route");
+                } else {
+                    steps.put(3, "La voiture tourne sur sa voie et poursuit sa route");
+                }
+            }
+
+        } else {
+
+            if (firstObstacleDamageType.equals("PEDESTRIAN_DAMAGE")) {
+                steps.put(1, "La voiture ne s'arrête pas au passage clouté et renverse le piéton");
+            } else if (firstObstacleDamageType.equals("CAR_DAMAGE")) {
+                steps.put(1, "La voiture ne s'arrête pas devant les bornes escamotables et les touche");
+            }
+
+        }
+
+        return new Object[]{globalUtility, steps};
+
+    }
+
+    /**
      * Détermine si la voiture peut atteindre la vitesse souhaitée sur la distance disponible
      * @param oldSpeed
      * @param newSpeed
@@ -199,6 +383,181 @@ public class DecisionMaker {
         }
 
         return situations;
+    }
+
+    /**
+     * Réalise 100 cycles de situations et calcule les probabilités de chaque obstacle.
+     * @param camera
+     */
+    public void learnAndUpdateProbability(Camera camera) {
+        final int ITERATIONS = 100;
+        for (int i = 0 ; i < ITERATIONS ; i++) {
+            List<EnvironmentSituation> situations = camera.getInformation();
+            RetractableBollardIntersection bollardIntersection = new RetractableBollardIntersection();
+
+            if (bollardIntersection.getInformation()) {
+                bollardRaisedProbability++;
+            }
+
+            if (situations.contains(EnvironmentSituation.PEDESTRIAN_UP_ROAD)) {
+                pedestrianUpRoadProbability++;
+            }
+
+            if (situations.contains(EnvironmentSituation.PEDESTRIAN_LEFT_ROAD)) {
+                pedestrianLeftRoadProbability++;
+            }
+
+            if (situations.contains(EnvironmentSituation.PEDESTRIAN_DOWN_ROAD)) {
+                pedestrianDownRoadProbability++;
+            }
+
+            if (situations.contains(EnvironmentSituation.PEDESTRIAN_RIGHT_ROAD)) {
+                pedestrianRightRoadProbability++;
+            }
+
+            if (situations.contains(EnvironmentSituation.CAR_COMES_FROM_DOWN)) {
+                carDownRoadProbability++;
+            }
+        }
+
+        bollardRaisedProbability /= ITERATIONS;
+        pedestrianUpRoadProbability /= ITERATIONS;
+        pedestrianLeftRoadProbability /= ITERATIONS;
+        pedestrianDownRoadProbability /= ITERATIONS;
+        pedestrianRightRoadProbability /= ITERATIONS;
+        carDownRoadProbability /= ITERATIONS;
+    }
+
+    /**
+     * Permet d'afficher les probabilités des obstacles.
+     */
+    public void printProbabilities() {
+        System.out.println("Probabilités :");
+        System.out.println("- Bornes escamotables levées : " + bollardRaisedProbability);
+        System.out.println("- Piéton sur la route du haut : " + pedestrianUpRoadProbability);
+        System.out.println("- Piéton sur la route de gauche : " + pedestrianLeftRoadProbability);
+        System.out.println("- Piéton sur la route du bas : " + pedestrianDownRoadProbability);
+        System.out.println("- Piéton sur la route de droite : " + pedestrianRightRoadProbability);
+        System.out.println("- Voiture provenant de la route du bas : " + carDownRoadProbability);
+    }
+
+    /**
+     * Permet de calculer l'utilité obtenu pour le premier obstacle.
+     * @param carStopped
+     * @param bollardRaised
+     * @param situations
+     * @return Un tableau contenant les éléments suivants :
+     *          - élément 0 : Utilité obtenue.
+     *          - élément 1 : Type de dégâts dans le cas où il y en a.
+     */
+    private Object[] calculateUtilityFirstObstacle(boolean carStopped, boolean bollardRaised, List<EnvironmentSituation> situations) {
+        Object[] result = new Object[2];
+        result[1] = null;
+
+        int utility;
+        if (carStopped) {
+
+            if (situations.contains(EnvironmentSituation.PEDESTRIAN_UP_ROAD)) {
+                utility = PEDESTRIAN_DAMAGE_UTILITY[1];
+            } else if (bollardRaised) {
+                utility = CAR_DAMAGE_UTILITY[1];
+            } else {
+                utility = STOP_BUT_NO_BOLLARD_UTILITY + STOP_BUT_NO_PEDESTRIAN_OR_CAR_UTILITY;
+            }
+
+        } else {
+
+            if (situations.contains(EnvironmentSituation.PEDESTRIAN_UP_ROAD)) {
+                utility = PEDESTRIAN_DAMAGE_UTILITY[0];
+                result[1] = "PEDESTRIAN_DAMAGE";
+            } else if (bollardRaised) {
+                utility = CAR_DAMAGE_UTILITY[0];
+                result[1] = "CAR_DAMAGE";
+            } else {
+                utility = FAST_CROSSING_UTILITY;
+            }
+
+        }
+
+        result[0] = utility;
+
+        return result;
+    }
+
+    /**
+     * Permet de calculer l'utilité obtenu pour le deuxième obstacle.
+     * @param carStopped
+     * @param carItinerary
+     * @param situations
+     * @return Un tableau contenant les éléments suivants :
+     *          - élément 0 : Utilité obtenue.
+     *          - élément 1 : Type de dégâts dans le cas où il y en a.
+     */
+    private Object[] calculateUtilitySecondObstacle(boolean carStopped, IntersectionRoads carItinerary, List<EnvironmentSituation> situations) {
+        Object[] result = new Object[2];
+        result[1] = null;
+
+        int utility = 0;
+
+        switch (carItinerary) {
+            case LEFT -> {
+                if (carStopped) {
+                    if (situations.contains(EnvironmentSituation.PEDESTRIAN_LEFT_ROAD)) {
+                        utility = PEDESTRIAN_DAMAGE_UTILITY[1];
+                    } else {
+                        utility = STOP_BUT_NO_PEDESTRIAN_OR_CAR_UTILITY;
+                    }
+                } else {
+                    if (situations.contains(EnvironmentSituation.PEDESTRIAN_LEFT_ROAD)) {
+                        utility = PEDESTRIAN_DAMAGE_UTILITY[0];
+                        result[1] =  "PEDESTRIAN_DAMAGE";
+                    } else {
+                        utility = FAST_CROSSING_UTILITY;
+                    }
+                }
+            }
+            case DOWN -> {
+                if (carStopped) {
+                    if (situations.contains(EnvironmentSituation.PEDESTRIAN_DOWN_ROAD)) {
+                        utility = PEDESTRIAN_DAMAGE_UTILITY[1];
+                    } else {
+                        utility = STOP_BUT_NO_PEDESTRIAN_OR_CAR_UTILITY;
+                    }
+                } else {
+                    if (situations.contains(EnvironmentSituation.PEDESTRIAN_DOWN_ROAD)) {
+                        utility = PEDESTRIAN_DAMAGE_UTILITY[0];
+                        result[1] =  "PEDESTRIAN_DAMAGE";
+                    } else {
+                        utility = FAST_CROSSING_UTILITY;
+                    }
+                }
+            }
+            case RIGHT -> {
+                if (carStopped) {
+                    if (situations.contains(EnvironmentSituation.PEDESTRIAN_RIGHT_ROAD)) {
+                        utility = PEDESTRIAN_DAMAGE_UTILITY[1];
+                    } else if (situations.contains(EnvironmentSituation.CAR_COMES_FROM_DOWN)) {
+                        utility = CAR_DAMAGE_UTILITY[1];
+                    } else {
+                        utility = STOP_BUT_NO_PEDESTRIAN_OR_CAR_UTILITY * 2; // Ni voiture, ni piéton
+                    }
+                } else {
+                    if (situations.contains(EnvironmentSituation.PEDESTRIAN_RIGHT_ROAD)) {
+                        utility = PEDESTRIAN_DAMAGE_UTILITY[0];
+                        result[1] =  "PEDESTRIAN_DAMAGE";
+                    } else if (situations.contains(EnvironmentSituation.CAR_COMES_FROM_DOWN)) {
+                        utility = CAR_DAMAGE_UTILITY[0];
+                        result[1] =  "CAR_DAMAGE";
+                    } else {
+                        utility = FAST_CROSSING_UTILITY;
+                    }
+                }
+            }
+        }
+
+        result[0] = utility;
+
+        return result;
     }
 
 }
